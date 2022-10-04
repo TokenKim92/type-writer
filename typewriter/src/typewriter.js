@@ -97,6 +97,9 @@ class TypeWriter {
       case TypeWriter.MOVE:
         this.#setMoveData(msg.data);
         return this.#moving;
+      case TypeWriter.DELETE:
+        this.#setDeleteData(msg.data);
+        return this.#deleting;
       default:
         return undefined;
     }
@@ -115,7 +118,7 @@ class TypeWriter {
   }
 
   type(text, delayTime = 0) {
-    this.#checkTypeForDelayTime(delayTime);
+    checkType(delayTime, primitiveType.number);
     // a text line
     if (!Array.isArray(text)) {
       checkType(text, primitiveType.string);
@@ -137,34 +140,32 @@ class TypeWriter {
 
   move(index, delayTime = 0) {
     checkType(index, primitiveType.number);
-    this.#checkTypeForDelayTime(delayTime);
+    checkType(delayTime, primitiveType.number);
 
     this.#addMsg(TypeWriter.MOVE, index, delayTime);
     return this;
   }
 
   moveToStart(delayTime = 0) {
-    this.#checkTypeForDelayTime(delayTime);
-    console.log(Number.MIN_VALUE);
+    checkType(delayTime, primitiveType.number);
+
     this.#addMsg(TypeWriter.MOVE, Number.MIN_SAFE_INTEGER, delayTime);
     return this;
   }
 
   moveToEnd(delayTime = 0) {
-    this.#checkTypeForDelayTime(delayTime);
+    checkType(delayTime, primitiveType.number);
 
     this.#addMsg(TypeWriter.MOVE, Number.MAX_SAFE_INTEGER, delayTime);
     return this;
   }
 
-  #checkTypeForDelayTime(delayTime) {
+  delete(index, delayTime = 0) {
+    checkType(index, primitiveType.number);
     checkType(delayTime, primitiveType.number);
 
-    if (delayTime < 0) {
-      throw new Error(
-        'This parameter should be a number greater than or equal to 0.'
-      );
-    }
+    this.#addMsg(TypeWriter.DELETE, index, delayTime);
+    return this;
   }
 
   #setTypeData(text) {
@@ -173,6 +174,19 @@ class TypeWriter {
   }
 
   #setMoveData(index) {
+    if (this.#curTabIndex + index < 0) {
+      this.#targetTabIndex = 0;
+      this.#movingDirection = TypeWriter.LEFT;
+    } else if (this.#curTabIndex + index > this.#textNodeList.length) {
+      this.#targetTabIndex = this.#textNodeList.length;
+      this.#movingDirection = TypeWriter.RIGHT;
+    } else {
+      this.#targetTabIndex = this.#curTabIndex + index;
+      this.#movingDirection = index >= 0 ? TypeWriter.RIGHT : TypeWriter.LEFT;
+    }
+  }
+
+  #setDeleteData(index) {
     if (this.#curTabIndex + index < 0) {
       this.#targetTabIndex = 0;
       this.#movingDirection = TypeWriter.LEFT;
@@ -212,9 +226,27 @@ class TypeWriter {
     this.#elementObj.insertBefore(this.#tabObj, textNode);
   }
 
+  #deleting() {
+    if (this.#curTabIndex === this.#targetTabIndex) {
+      this.#curMsg = { case: TypeWriter.INIT, data: null };
+      return;
+    }
+
+    const textNode =
+      this.#movingDirection === TypeWriter.LEFT
+        ? this.#textNodeList[this.#curTabIndex + this.#movingDirection]
+        : this.#textNodeList[this.#curTabIndex];
+
+    this.#curTabIndex += this.#movingDirection;
+    this.#textNodeList.splice(this.#curTabIndex, 1);
+    this.#elementObj.removeChild(textNode);
+  }
+
   #addMsg(msgType, data, delayTime) {
+    const adjustedDelayTime = delayTime > 0 ? delayTime : 0;
+
     this.#msgList.push({ case: msgType, data: data });
-    delayTime && this.#msgList.push({ type: TypeWriter.DELAY, data: delayTime }); // prettier-ignore
+    adjustedDelayTime && this.#msgList.push({ type: TypeWriter.DELAY, data: adjustedDelayTime }); // prettier-ignore
   }
 }
 
