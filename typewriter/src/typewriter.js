@@ -3,7 +3,7 @@ import { primitiveType, checkType } from './utils.js';
 class TypeWriter {
   static MAX_SPEED = 100;
   static MAX_SPEED_TIME = 4000; // ms
-  static TAB_TOGGLE_TIME = 500;
+  static TAB_TOGGLE_TIME = 500; // ms
   static LEFT = -1;
   static RIGHT = 1;
 
@@ -28,6 +28,8 @@ class TypeWriter {
   #toBeTypedText;
   #curTypingIndex;
   #movingDirection;
+  #targetDelayCount;
+  #curDelayCount;
 
   constructor(elementId, speed) {
     checkType(elementId, primitiveType.string);
@@ -100,6 +102,9 @@ class TypeWriter {
       case TypeWriter.DELETE:
         this.#setDeleteData(msg.data);
         return this.#deleting;
+      case TypeWriter.DELAY:
+        this.#setDelayData(msg.data);
+        return this.#delaying;
       default:
         return undefined;
     }
@@ -175,9 +180,24 @@ class TypeWriter {
     return this;
   }
 
+  delay(delayTime) {
+    checkType(delayTime, primitiveType.number);
+
+    const adjustedDelayTime = delayTime > 0 ? delayTime : 0;
+    this.#msgList.push({ case: TypeWriter.DELAY, data: adjustedDelayTime });
+    return this;
+  }
+
   #setTypeData(text) {
     this.#toBeTypedText = text;
     this.#curTypingIndex = 0;
+  }
+
+  #addMsg(msgType, data, delayTime) {
+    const adjustedDelayTime = delayTime > 0 ? delayTime : 0;
+
+    this.#msgList.push({ case: msgType, data: data });
+    adjustedDelayTime && this.#msgList.push({ case: TypeWriter.DELAY, data: adjustedDelayTime }); // prettier-ignore
   }
 
   #setMoveData(index) {
@@ -204,6 +224,11 @@ class TypeWriter {
       this.#targetTabIndex = this.#curTabIndex + index;
       this.#movingDirection = index >= 0 ? TypeWriter.RIGHT : TypeWriter.LEFT;
     }
+  }
+
+  #setDelayData(time) {
+    this.#targetDelayCount = Math.round(time / this.#speed);
+    this.#curDelayCount = 0;
   }
 
   #typing() {
@@ -249,11 +274,13 @@ class TypeWriter {
     this.#elementObj.removeChild(textNode);
   }
 
-  #addMsg(msgType, data, delayTime) {
-    const adjustedDelayTime = delayTime > 0 ? delayTime : 0;
+  #delaying() {
+    if (this.#curDelayCount === this.#targetDelayCount) {
+      this.#curMsg = { case: TypeWriter.INIT, data: null };
+      return;
+    }
 
-    this.#msgList.push({ case: msgType, data: data });
-    adjustedDelayTime && this.#msgList.push({ type: TypeWriter.DELAY, data: adjustedDelayTime }); // prettier-ignore
+    this.#curDelayCount++;
   }
 }
 
