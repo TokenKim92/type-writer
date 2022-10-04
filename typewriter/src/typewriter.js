@@ -1,8 +1,11 @@
 import { primitiveType, checkType } from './utils.js';
 
 class TypeWriter {
-  static MAX_SPEED_TIME = 1000; // ms
+  static MAX_SPEED = 100; // ms
+  static MAX_SPEED_TIME = 2000; // ms
   static TAB_TOGGLE_TIME = 500;
+  static LEFT = -1;
+  static RIGHT = 1;
 
   static INIT = 0;
   static TYPE = 1;
@@ -19,10 +22,12 @@ class TypeWriter {
   #stopMsgLoopTimer = undefined;
   #stopTabToggleTimer = undefined;
   #curTabIndex = 0;
+  #targetTabIndex = 0;
   #toggleFlag = false;
   #textNodeList = [];
   #toBeTypedText;
   #curTypingIndex;
+  #movingDirection;
 
   constructor(elementId, speed) {
     checkType(elementId, primitiveType.string);
@@ -36,6 +41,9 @@ class TypeWriter {
     this.#speed = TypeWriter.MAX_SPEED_TIME / this.#getAdjustedSpeed(speed);
 
     this.#tabObj = document.createElement('span');
+    this.#tabObj.style.width = '0px';
+    this.#tabObj.style.display = 'inline-block';
+    this.#tabObj.style.transform = 'translateX(-.115em)';
     this.#tabObj.innerHTML = '|';
     this.#elementObj.appendChild(this.#tabObj);
 
@@ -45,8 +53,8 @@ class TypeWriter {
   #getAdjustedSpeed(speed) {
     if (speed < 1) {
       return 1;
-    } else if (speed > TypeWriter.MAX_SPEED_TIME) {
-      return TypeWriter.MAX_SPEED_TIME;
+    } else if (speed > TypeWriter.MAX_SPEED) {
+      return TypeWriter.MAX_SPEED;
     } else {
       return speed;
     }
@@ -86,6 +94,9 @@ class TypeWriter {
       case TypeWriter.TYPE:
         this.#setTypeData(msg.data);
         return this.#typing;
+      case TypeWriter.MOVE:
+        this.#setMoveData(msg.data);
+        return this.#moving;
       default:
         return undefined;
     }
@@ -124,6 +135,28 @@ class TypeWriter {
     return this;
   }
 
+  move(index, delayTime = 0) {
+    checkType(index, primitiveType.number);
+    this.#checkTypeForDelayTime(delayTime);
+
+    this.#addMsg(TypeWriter.MOVE, index, delayTime);
+    return this;
+  }
+
+  moveToStart(delayTime = 0) {
+    this.#checkTypeForDelayTime(delayTime);
+    console.log(Number.MIN_VALUE);
+    this.#addMsg(TypeWriter.MOVE, Number.MIN_SAFE_INTEGER, delayTime);
+    return this;
+  }
+
+  moveToEnd(delayTime = 0) {
+    this.#checkTypeForDelayTime(delayTime);
+
+    this.#addMsg(TypeWriter.MOVE, Number.MAX_SAFE_INTEGER, delayTime);
+    return this;
+  }
+
   #checkTypeForDelayTime(delayTime) {
     checkType(delayTime, primitiveType.number);
 
@@ -139,6 +172,19 @@ class TypeWriter {
     this.#curTypingIndex = 0;
   }
 
+  #setMoveData(index) {
+    if (this.#curTabIndex + index < 0) {
+      this.#targetTabIndex = 0;
+      this.#movingDirection = TypeWriter.LEFT;
+    } else if (this.#curTabIndex + index > this.#textNodeList.length) {
+      this.#targetTabIndex = this.#textNodeList.length;
+      this.#movingDirection = TypeWriter.RIGHT;
+    } else {
+      this.#targetTabIndex = this.#curTabIndex + index;
+      this.#movingDirection = index >= 0 ? TypeWriter.RIGHT : TypeWriter.LEFT;
+    }
+  }
+
   #typing() {
     if (this.#curTypingIndex >= this.#toBeTypedText.length) {
       this.#curMsg = { case: TypeWriter.INIT, data: null };
@@ -152,6 +198,18 @@ class TypeWriter {
         : document.createElement('br');
     this.#textNodeList.splice(this.#curTabIndex++, 0, textNode);
     this.#elementObj.insertBefore(textNode, this.#tabObj);
+  }
+
+  #moving() {
+    if (this.#curTabIndex === this.#targetTabIndex) {
+      this.#curMsg = { case: TypeWriter.INIT, data: null };
+      return;
+    }
+
+    this.#elementObj.removeChild(this.#tabObj);
+    this.#curTabIndex += this.#movingDirection;
+    const textNode = this.#textNodeList[this.#curTabIndex];
+    this.#elementObj.insertBefore(this.#tabObj, textNode);
   }
 
   #addMsg(msgType, data, delayTime) {
