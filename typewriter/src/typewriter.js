@@ -1,8 +1,8 @@
 import { primitiveType, checkType } from './utils.js';
 
 class TypeWriter {
-  static MAX_SPEED = 100; // ms
-  static MAX_SPEED_TIME = 2000; // ms
+  static MAX_SPEED = 100;
+  static MAX_SPEED_TIME = 4000; // ms
   static TAB_TOGGLE_TIME = 500;
   static LEFT = -1;
   static RIGHT = 1;
@@ -135,6 +135,13 @@ class TypeWriter {
       this.#addMsg(TypeWriter.TYPE, adjustedLineText, adjustedDelayTime);
     });
 
+    return this;
+  }
+
+  newLine(delayTime = 0) {
+    checkType(delayTime, primitiveType.number);
+
+    this.#addMsg(TypeWriter.TYPE, '\n', delayTime);
     return this;
   }
 
