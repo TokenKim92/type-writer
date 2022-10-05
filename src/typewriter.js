@@ -4,6 +4,7 @@ class TypeWriter {
   static MAX_SPEED = 100;
   static MAX_SPEED_TIME = 4000; // ms
   static CURSOR_TOGGLE_TIME = 500; // ms
+
   static LEFT = -1;
   static RIGHT = 1;
 
@@ -33,6 +34,8 @@ class TypeWriter {
   #movingDirection;
   #targetDelayCount;
   #curDelayCount;
+  #isRandomColorMode;
+  #orgFontColor;
 
   constructor(elementId, speed) {
     checkType(elementId, primitiveType.string);
@@ -45,9 +48,9 @@ class TypeWriter {
     checkType(speed, primitiveType.number);
     this.#speed = TypeWriter.MAX_SPEED_TIME / this.#getAdjustedSpeed(speed);
 
-    const fontSize = window
-      .getComputedStyle(this.#rootObj)
-      .fontSize.match(/\d+/)[0];
+    const rootStyle = window.getComputedStyle(this.#rootObj);
+    const fontSize = rootStyle.fontSize.match(/\d+/)[0];
+    this.#orgFontColor = rootStyle.color;
 
     this.#cursorWrapperObj = document.createElement('div');
     this.#cursorWrapperObj.style.cssText = `
@@ -64,6 +67,8 @@ class TypeWriter {
     this.#cursorWrapperObj.appendChild(this.#cursorObj);
     this.#rootObj.appendChild(this.#cursorWrapperObj);
 
+    this.#setCursorToggleTimer();
+
     return this;
   }
 
@@ -77,27 +82,37 @@ class TypeWriter {
     }
   }
 
-  start() {
+  start(isRandomColorMode = false) {
+    this.#isRandomColorMode = isRandomColorMode;
+
+    this.#stopCursorToggleTimer && this.#stopCursorToggleTimer();
+    this.#stopCursorToggleTimer = undefined;
+
     const intervalId = setInterval(() => this.#onMsgLoop(), this.#speed);
     this.#stopMsgLoopTimer = () => clearInterval(intervalId);
   }
 
   stop() {
+    if (this.#isRandomColorMode) {
+      this.#isRandomColorMode = false;
+      this.#rootObj.style.color = this.#orgFontColor;
+    }
+
     this.#stopMsgLoopTimer && this.#stopMsgLoopTimer();
     this.#stopMsgLoopTimer = undefined;
+
+    this.#stopCursorToggleTimer || this.#setCursorToggleTimer();
   }
+
+  randomColorMode() {}
 
   #onMsgLoop() {
     if (this.#curMsg.case === TypeWriter.INIT) {
       const isMsgLoopEmpty = this.#msgList.length === 0;
       if (isMsgLoopEmpty) {
         this.stop();
-        this.#setCursorToggleTimer();
         return;
       }
-
-      this.#stopCursorToggleTimer && this.#stopCursorToggleTimer();
-      this.#stopCursorToggleTimer = undefined;
 
       this.#curMsg = this.#msgList.shift();
       this.#msgHandler = this.#getMsgHandle(this.#curMsg);
@@ -259,6 +274,8 @@ class TypeWriter {
         : document.createElement('br');
     this.#textNodeList.splice(this.#curCursorIndex++, 0, textNode);
     this.#rootObj.insertBefore(textNode, this.#cursorWrapperObj);
+
+    this.#isRandomColorMode && (this.#rootObj.style.color = this.#randomRGB);
   }
 
   #moving() {
@@ -271,6 +288,8 @@ class TypeWriter {
     this.#curCursorIndex += this.#movingDirection;
     const textNode = this.#textNodeList[this.#curCursorIndex];
     this.#rootObj.insertBefore(this.#cursorWrapperObj, textNode);
+
+    this.#isRandomColorMode && (this.#rootObj.style.color = this.#randomRGB);
   }
 
   #deleting() {
@@ -287,6 +306,8 @@ class TypeWriter {
     this.#curCursorIndex += this.#movingDirection;
     this.#textNodeList.splice(this.#curCursorIndex, 1);
     this.#rootObj.removeChild(textNode);
+
+    this.#isRandomColorMode && (this.#rootObj.style.color = this.#randomRGB);
   }
 
   #delaying() {
@@ -296,6 +317,11 @@ class TypeWriter {
     }
 
     this.#curDelayCount++;
+  }
+
+  get #randomRGB() {
+    const randomColorValue = () => Math.round(Math.random() * 255);
+    return `rgb(${randomColorValue()}, ${randomColorValue()}, ${randomColorValue()})`;
   }
 }
 
