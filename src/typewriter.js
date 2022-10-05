@@ -3,7 +3,7 @@ import { primitiveType, checkType } from './utils.js';
 class TypeWriter {
   static MAX_SPEED = 100;
   static MAX_SPEED_TIME = 4000; // ms
-  static TAB_TOGGLE_TIME = 500; // ms
+  static CURSOR_TOGGLE_TIME = 500; // ms
   static LEFT = -1;
   static RIGHT = 1;
 
@@ -13,17 +13,20 @@ class TypeWriter {
   static DELETE = 3;
   static DELAY = 4;
 
-  #elementObj;
-  #tabObj;
+  static CURSOR_COLOR = 'rgb(55, 65, 81)';
+
+  #rootObj;
+  #cursorObj;
+  #cursorWrapperObj;
   #speed;
   #msgList = [];
   #curMsg = { case: TypeWriter.INIT, data: null };
   #msgHandler;
   #stopMsgLoopTimer = undefined;
-  #stopTabToggleTimer = undefined;
-  #curTabIndex = 0;
-  #targetTabIndex = 0;
-  #toggleFlag = false;
+  #stopCursorToggleTimer = undefined;
+  #curCursorIndex = 0;
+  #targetCursorIndex = 0;
+  #cursorToggleFlag = false;
   #textNodeList = [];
   #toBeTypedText;
   #curTypingIndex;
@@ -37,17 +40,29 @@ class TypeWriter {
     if (!elementObj) {
       throw new Error("This element id doesn't exit.");
     }
-    this.#elementObj = elementObj;
+    this.#rootObj = elementObj;
 
     checkType(speed, primitiveType.number);
     this.#speed = TypeWriter.MAX_SPEED_TIME / this.#getAdjustedSpeed(speed);
 
-    this.#tabObj = document.createElement('span');
-    this.#tabObj.style.width = '0px';
-    this.#tabObj.style.display = 'inline-block';
-    this.#tabObj.style.transform = 'translateX(-.115em)';
-    this.#tabObj.innerHTML = '|';
-    this.#elementObj.appendChild(this.#tabObj);
+    const fontSize = window
+      .getComputedStyle(this.#rootObj)
+      .fontSize.match(/\d+/)[0];
+
+    this.#cursorWrapperObj = document.createElement('div');
+    this.#cursorWrapperObj.style.cssText = `
+      display: inline-block;
+      width: 0px;
+      font-size: ${Math.round(fontSize * 1.3)}px;
+      font-family: 'Segoe UI', sans-serif;
+      font-weight: 100;
+      color: ${TypeWriter.CURSOR_COLOR};
+      transform: translateX(-.115em);
+    `;
+    this.#cursorObj = document.createElement('span');
+    this.#cursorObj.innerText = '|';
+    this.#cursorWrapperObj.appendChild(this.#cursorObj);
+    this.#rootObj.appendChild(this.#cursorWrapperObj);
 
     return this;
   }
@@ -77,12 +92,12 @@ class TypeWriter {
       const isMsgLoopEmpty = this.#msgList.length === 0;
       if (isMsgLoopEmpty) {
         this.stop();
-        this.#setTabToggleTimer();
+        this.#setCursorToggleTimer();
         return;
       }
 
-      this.#stopTabToggleTimer && this.#stopTabToggleTimer();
-      this.#stopTabToggleTimer = undefined;
+      this.#stopCursorToggleTimer && this.#stopCursorToggleTimer();
+      this.#stopCursorToggleTimer = undefined;
 
       this.#curMsg = this.#msgList.shift();
       this.#msgHandler = this.#getMsgHandle(this.#curMsg);
@@ -110,15 +125,15 @@ class TypeWriter {
     }
   }
 
-  #setTabToggleTimer() {
+  #setCursorToggleTimer() {
     const intervalId = setInterval(() => {
-      this.#toggleFlag = !this.#toggleFlag;
-      this.#tabObj.style.opacity = `${this.#toggleFlag ? 1 : 0}`;
-    }, TypeWriter.TAB_TOGGLE_TIME);
+      this.#cursorToggleFlag = !this.#cursorToggleFlag;
+      this.#cursorObj.style.opacity = `${this.#cursorToggleFlag ? 1 : 0}`;
+    }, TypeWriter.CURSOR_TOGGLE_TIME);
 
-    this.#stopTabToggleTimer = () => {
+    this.#stopCursorToggleTimer = () => {
       clearInterval(intervalId);
-      this.#tabObj.style.opacity = 1;
+      this.#cursorObj.style.opacity = 1;
     };
   }
 
@@ -201,27 +216,27 @@ class TypeWriter {
   }
 
   #setMoveData(index) {
-    if (this.#curTabIndex + index < 0) {
-      this.#targetTabIndex = 0;
+    if (this.#curCursorIndex + index < 0) {
+      this.#targetCursorIndex = 0;
       this.#movingDirection = TypeWriter.LEFT;
-    } else if (this.#curTabIndex + index > this.#textNodeList.length) {
-      this.#targetTabIndex = this.#textNodeList.length;
+    } else if (this.#curCursorIndex + index > this.#textNodeList.length) {
+      this.#targetCursorIndex = this.#textNodeList.length;
       this.#movingDirection = TypeWriter.RIGHT;
     } else {
-      this.#targetTabIndex = this.#curTabIndex + index;
+      this.#targetCursorIndex = this.#curCursorIndex + index;
       this.#movingDirection = index >= 0 ? TypeWriter.RIGHT : TypeWriter.LEFT;
     }
   }
 
   #setDeleteData(index) {
-    if (this.#curTabIndex + index < 0) {
-      this.#targetTabIndex = 0;
+    if (this.#curCursorIndex + index < 0) {
+      this.#targetCursorIndex = 0;
       this.#movingDirection = TypeWriter.LEFT;
-    } else if (this.#curTabIndex + index > this.#textNodeList.length) {
-      this.#targetTabIndex = this.#textNodeList.length;
+    } else if (this.#curCursorIndex + index > this.#textNodeList.length) {
+      this.#targetCursorIndex = this.#textNodeList.length;
       this.#movingDirection = TypeWriter.RIGHT;
     } else {
-      this.#targetTabIndex = this.#curTabIndex + index;
+      this.#targetCursorIndex = this.#curCursorIndex + index;
       this.#movingDirection = index >= 0 ? TypeWriter.RIGHT : TypeWriter.LEFT;
     }
   }
@@ -242,36 +257,36 @@ class TypeWriter {
       character !== '\n'
         ? document.createTextNode(character)
         : document.createElement('br');
-    this.#textNodeList.splice(this.#curTabIndex++, 0, textNode);
-    this.#elementObj.insertBefore(textNode, this.#tabObj);
+    this.#textNodeList.splice(this.#curCursorIndex++, 0, textNode);
+    this.#rootObj.insertBefore(textNode, this.#cursorWrapperObj);
   }
 
   #moving() {
-    if (this.#curTabIndex === this.#targetTabIndex) {
+    if (this.#curCursorIndex === this.#targetCursorIndex) {
       this.#curMsg = { case: TypeWriter.INIT, data: null };
       return;
     }
 
-    this.#elementObj.removeChild(this.#tabObj);
-    this.#curTabIndex += this.#movingDirection;
-    const textNode = this.#textNodeList[this.#curTabIndex];
-    this.#elementObj.insertBefore(this.#tabObj, textNode);
+    this.#rootObj.removeChild(this.#cursorWrapperObj);
+    this.#curCursorIndex += this.#movingDirection;
+    const textNode = this.#textNodeList[this.#curCursorIndex];
+    this.#rootObj.insertBefore(this.#cursorWrapperObj, textNode);
   }
 
   #deleting() {
-    if (this.#curTabIndex === this.#targetTabIndex) {
+    if (this.#curCursorIndex === this.#targetCursorIndex) {
       this.#curMsg = { case: TypeWriter.INIT, data: null };
       return;
     }
 
     const textNode =
       this.#movingDirection === TypeWriter.LEFT
-        ? this.#textNodeList[this.#curTabIndex + this.#movingDirection]
-        : this.#textNodeList[this.#curTabIndex];
+        ? this.#textNodeList[this.#curCursorIndex + this.#movingDirection]
+        : this.#textNodeList[this.#curCursorIndex];
 
-    this.#curTabIndex += this.#movingDirection;
-    this.#textNodeList.splice(this.#curTabIndex, 1);
-    this.#elementObj.removeChild(textNode);
+    this.#curCursorIndex += this.#movingDirection;
+    this.#textNodeList.splice(this.#curCursorIndex, 1);
+    this.#rootObj.removeChild(textNode);
   }
 
   #delaying() {
