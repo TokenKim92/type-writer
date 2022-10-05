@@ -1,4 +1,4 @@
-import { primitiveType, checkType, colorPalettes } from './utils.js';
+import { primitiveType, checkType, colorToRGB } from './utils.js';
 
 class TypeWriter {
   static MAX_SPEED = 100;
@@ -34,9 +34,12 @@ class TypeWriter {
   #movingDirection;
   #targetDelayCount;
   #curDelayCount;
-  #isRandomColorMode;
+  #isGradientColorMode = false;
   #orgFontColor;
-  #colorPalette;
+  #gradientStartColor;
+  #gradientEndColor;
+  #textLengthPerLine = [0];
+  #lineCount = 0;
 
   constructor(elementId, speed) {
     checkType(elementId, primitiveType.string);
@@ -83,12 +86,7 @@ class TypeWriter {
     }
   }
 
-  start(isRandomColorMode = false) {
-    this.#isRandomColorMode = isRandomColorMode;
-    this.#colorPalette = this.#isRandomColorMode
-      ? colorPalettes[Math.round(Math.random() * (colorPalettes.length - 1))]
-      : undefined;
-
+  start() {
     this.#stopCursorToggleTimer && this.#stopCursorToggleTimer();
     this.#stopCursorToggleTimer = undefined;
 
@@ -97,8 +95,8 @@ class TypeWriter {
   }
 
   stop() {
-    if (this.#isRandomColorMode) {
-      this.#isRandomColorMode = false;
+    if (this.#isGradientColorMode) {
+      this.#isGradientColorMode = false;
       this.#rootObj.style.color = this.#orgFontColor;
     }
 
@@ -108,7 +106,16 @@ class TypeWriter {
     this.#stopCursorToggleTimer || this.#setCursorToggleTimer();
   }
 
-  randomColorMode() {}
+  setGradientColorMode(startColor, endColor = undefined) {
+    this.#gradientStartColor = colorToRGB(startColor);
+    this.#gradientEndColor =
+      endColor === undefined
+        ? colorToRGB(this.#orgFontColor)
+        : colorToRGB(endColor);
+    this.#isGradientColorMode = true;
+
+    return this;
+  }
 
   #onMsgLoop() {
     if (this.#curMsg.case === TypeWriter.INIT) {
@@ -274,12 +281,45 @@ class TypeWriter {
     const character = this.#toBeTypedText[this.#curTypingIndex++];
     const textNode =
       character !== '\n'
-        ? document.createTextNode(character)
+        ? this.#createTextTag(character)
         : document.createElement('br');
+
     this.#textNodeList.splice(this.#curCursorIndex++, 0, textNode);
     this.#rootObj.insertBefore(textNode, this.#cursorWrapperObj);
 
-    this.#isRandomColorMode && (this.#rootObj.style.color = this.#randomRGB);
+    this.#isGradientColorMode && this.#onGradientMode(character);
+  }
+
+  #createTextTag(character) {
+    const textNode = document.createTextNode(character);
+    if (!this.#isGradientColorMode) {
+      return textNode;
+    }
+
+    const wrapperTextTag = document.createElement('span');
+    wrapperTextTag.appendChild(textNode);
+    return wrapperTextTag;
+  }
+
+  #onGradientMode(character) {
+    if (character === '\n') {
+      this.#lineCount++;
+      this.#textLengthPerLine[this.#lineCount] = 0;
+    }
+
+    const lengthUpToPreviousLine =
+      this.#textLengthPerLine.reduce((sum, textLength) => sum + textLength, 0) -
+      this.#textLengthPerLine[this.#textLengthPerLine.length - 1];
+
+    this.#textLengthPerLine[this.#lineCount] =
+      this.#textNodeList.length - lengthUpToPreviousLine;
+
+    for (let i = lengthUpToPreviousLine; i < this.#textNodeList.length; i++) {
+      this.#textNodeList[i].style.color = this.#getGradientColor(
+        i - lengthUpToPreviousLine,
+        this.#textLengthPerLine[this.#lineCount]
+      );
+    }
   }
 
   #moving() {
@@ -292,8 +332,6 @@ class TypeWriter {
     this.#curCursorIndex += this.#movingDirection;
     const textNode = this.#textNodeList[this.#curCursorIndex];
     this.#rootObj.insertBefore(this.#cursorWrapperObj, textNode);
-
-    this.#isRandomColorMode && (this.#rootObj.style.color = this.#randomRGB);
   }
 
   #deleting() {
@@ -310,8 +348,6 @@ class TypeWriter {
     this.#curCursorIndex += this.#movingDirection;
     this.#textNodeList.splice(this.#curCursorIndex, 1);
     this.#rootObj.removeChild(textNode);
-
-    this.#isRandomColorMode && (this.#rootObj.style.color = this.#randomRGB);
   }
 
   #delaying() {
@@ -323,11 +359,30 @@ class TypeWriter {
     this.#curDelayCount++;
   }
 
-  get #randomRGB() {
-    const randomIndex = Math.round(
-      Math.random() * (this.#colorPalette.count - 1)
+  #getGradientColor(index, length) {
+    const ratio = index / length;
+
+    const r = this.#calculateGradientColor(
+      this.#gradientStartColor.r,
+      this.#gradientEndColor.r,
+      ratio
     );
-    return this.#colorPalette.colors[randomIndex];
+    const g = this.#calculateGradientColor(
+      this.#gradientStartColor.g,
+      this.#gradientEndColor.g,
+      ratio
+    );
+    const b = this.#calculateGradientColor(
+      this.#gradientStartColor.b,
+      this.#gradientEndColor.b,
+      ratio
+    );
+
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
+  #calculateGradientColor(startColor, endColor, ratio) {
+    return startColor + ratio * (endColor - startColor);
   }
 }
 
