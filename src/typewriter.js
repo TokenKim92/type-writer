@@ -1,4 +1,4 @@
-import { primitiveType, checkType } from './utils.js';
+import { primitiveType, checkType, colorPalettes } from './utils.js';
 
 class TypeWriter {
   static MAX_SPEED = 100;
@@ -36,6 +36,7 @@ class TypeWriter {
   #curDelayCount;
   #isRandomColorMode;
   #orgFontColor;
+  #colorPalette;
 
   constructor(elementId, speed) {
     checkType(elementId, primitiveType.string);
@@ -84,6 +85,9 @@ class TypeWriter {
 
   start(isRandomColorMode = false) {
     this.#isRandomColorMode = isRandomColorMode;
+    this.#colorPalette = this.#isRandomColorMode
+      ? colorPalettes[Math.round(Math.random() * (colorPalettes.length - 1))]
+      : undefined;
 
     this.#stopCursorToggleTimer && this.#stopCursorToggleTimer();
     this.#stopCursorToggleTimer = undefined;
@@ -320,8 +324,10 @@ class TypeWriter {
   }
 
   get #randomRGB() {
-    const randomColorValue = () => Math.round(Math.random() * 255);
-    return `rgb(${randomColorValue()}, ${randomColorValue()}, ${randomColorValue()})`;
+    const randomIndex = Math.round(
+      Math.random() * (this.#colorPalette.count - 1)
+    );
+    return this.#colorPalette.colors[randomIndex];
   }
 }
 
