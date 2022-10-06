@@ -13,6 +13,7 @@ class TypeWriter {
   static MOVE = 2;
   static DELETE = 3;
   static DELAY = 4;
+  static GRADIENT = 5;
 
   static CURSOR_COLOR = 'rgb(55, 65, 81)';
 
@@ -26,18 +27,16 @@ class TypeWriter {
   #stopMsgLoopTimer = undefined;
   #stopCursorToggleTimer = undefined;
   #curCursorIndex = 0;
-  #targetCursorIndex = 0;
-  #cursorToggleFlag = false;
-  #textNodeList = [];
   #toBeTypedText;
-  #curTypingIndex;
   #movingDirection;
-  #targetDelayCount;
-  #curDelayCount;
+  #msgTargetCount;
+  #msgCalledCount;
+  #cursorToggleFlag = false;
   #isGradientColorMode = false;
   #orgFontColor;
   #gradientStartColor;
   #gradientEndColor;
+  #textNodeList = [];
   #textLengthPerLine = [0];
   #lineCount = 0;
 
@@ -230,8 +229,9 @@ class TypeWriter {
   }
 
   #setTypeData(text) {
+    this.#msgCalledCount = 0;
+    this.#msgTargetCount = text.length;
     this.#toBeTypedText = text;
-    this.#curTypingIndex = 0;
   }
 
   #addMsg(msgType, data, delayTime) {
@@ -242,43 +242,47 @@ class TypeWriter {
   }
 
   #setMoveData(index) {
+    this.#msgCalledCount = 0;
+
     if (this.#curCursorIndex + index < 0) {
-      this.#targetCursorIndex = 0;
+      this.#msgTargetCount = this.#curCursorIndex;
       this.#movingDirection = TypeWriter.LEFT;
     } else if (this.#curCursorIndex + index > this.#textNodeList.length) {
-      this.#targetCursorIndex = this.#textNodeList.length;
+      this.#msgTargetCount = this.#textNodeList.length - this.#curCursorIndex;
       this.#movingDirection = TypeWriter.RIGHT;
     } else {
-      this.#targetCursorIndex = this.#curCursorIndex + index;
+      this.#msgTargetCount = Math.abs(index);
       this.#movingDirection = index >= 0 ? TypeWriter.RIGHT : TypeWriter.LEFT;
     }
   }
 
   #setDeleteData(index) {
+    this.#msgCalledCount = 0;
+
     if (this.#curCursorIndex + index < 0) {
-      this.#targetCursorIndex = 0;
+      this.#msgTargetCount = this.#curCursorIndex;
       this.#movingDirection = TypeWriter.LEFT;
     } else if (this.#curCursorIndex + index > this.#textNodeList.length) {
-      this.#targetCursorIndex = this.#textNodeList.length;
+      this.#msgTargetCount = this.#textNodeList.length - this.#curCursorIndex;
       this.#movingDirection = TypeWriter.RIGHT;
     } else {
-      this.#targetCursorIndex = this.#curCursorIndex + index;
+      this.#msgTargetCount = Math.abs(index);
       this.#movingDirection = index >= 0 ? TypeWriter.RIGHT : TypeWriter.LEFT;
     }
   }
 
   #setDelayData(time) {
-    this.#targetDelayCount = Math.round(time / this.#speed);
-    this.#curDelayCount = 0;
+    this.#msgTargetCount = Math.round(time / this.#speed);
+    this.#msgCalledCount = 0;
   }
 
   #typing() {
-    if (this.#curTypingIndex >= this.#toBeTypedText.length) {
+    if (this.#msgCalledCount >= this.#msgTargetCount) {
       this.#curMsg = { case: TypeWriter.INIT, data: null };
       return;
     }
 
-    const character = this.#toBeTypedText[this.#curTypingIndex++];
+    const character = this.#toBeTypedText[this.#msgCalledCount];
     const textNode =
       character !== '\n'
         ? this.#createTextTag(character)
@@ -288,6 +292,7 @@ class TypeWriter {
     this.#rootObj.insertBefore(textNode, this.#cursorWrapperObj);
 
     this.#isGradientColorMode && this.#onGradientMode(character);
+    this.#msgCalledCount++;
   }
 
   #createTextTag(character) {
@@ -323,7 +328,7 @@ class TypeWriter {
   }
 
   #moving() {
-    if (this.#curCursorIndex === this.#targetCursorIndex) {
+    if (this.#msgCalledCount >= this.#msgTargetCount) {
       this.#curMsg = { case: TypeWriter.INIT, data: null };
       return;
     }
@@ -332,31 +337,36 @@ class TypeWriter {
     this.#curCursorIndex += this.#movingDirection;
     const textNode = this.#textNodeList[this.#curCursorIndex];
     this.#rootObj.insertBefore(this.#cursorWrapperObj, textNode);
+    this.#msgCalledCount++;
   }
 
   #deleting() {
-    if (this.#curCursorIndex === this.#targetCursorIndex) {
+    if (this.#msgCalledCount >= this.#msgTargetCount) {
       this.#curMsg = { case: TypeWriter.INIT, data: null };
       return;
     }
 
-    const textNode =
-      this.#movingDirection === TypeWriter.LEFT
-        ? this.#textNodeList[this.#curCursorIndex + this.#movingDirection]
-        : this.#textNodeList[this.#curCursorIndex];
+    let textNode;
+    if (this.#movingDirection === TypeWriter.LEFT) {
+      this.#curCursorIndex--;
+      textNode =
+        this.#textNodeList[this.#curCursorIndex + this.#movingDirection];
+    } else {
+      textNode = this.#textNodeList[this.#curCursorIndex];
+    }
 
-    this.#curCursorIndex += this.#movingDirection;
     this.#textNodeList.splice(this.#curCursorIndex, 1);
     this.#rootObj.removeChild(textNode);
+    this.#msgCalledCount++;
   }
 
   #delaying() {
-    if (this.#curDelayCount === this.#targetDelayCount) {
+    if (this.#msgCalledCount >= this.#msgTargetCount) {
       this.#curMsg = { case: TypeWriter.INIT, data: null };
       return;
     }
 
-    this.#curDelayCount++;
+    this.#msgCalledCount++;
   }
 
   #getGradientColor(index, length) {
