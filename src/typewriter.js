@@ -86,6 +86,10 @@ class TypeWriter {
   }
 
   start() {
+    if (this.#isRunning) {
+      throw new Error("It's already started.");
+    }
+
     this.#stopCursorToggleTimer && this.#stopCursorToggleTimer();
     this.#stopCursorToggleTimer = undefined;
 
@@ -94,6 +98,10 @@ class TypeWriter {
   }
 
   stop() {
+    if (!this.#isRunning) {
+      throw new Error("It's already stopped.");
+    }
+
     if (this.#isGradientColorMode) {
       this.#isGradientColorMode = false;
       this.#rootObj.style.color = this.#orgFontColor;
@@ -411,6 +419,10 @@ class TypeWriter {
 
   #calculateGradientColor(startColor, endColor, ratio) {
     return startColor + ratio * (endColor - startColor);
+  }
+
+  get #isRunning() {
+    return this.#stopMsgLoopTimer !== undefined;
   }
 }
 
