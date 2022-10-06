@@ -1,12 +1,9 @@
-import { primitiveType, checkType, colorToRGB } from './utils.js';
+import { primitiveType, checkType, colorToRGB, LEFT, RIGHT } from './utils.js';
 
 class TypeWriter {
   static MAX_SPEED = 100;
   static MAX_SPEED_TIME = 4000; // ms
   static CURSOR_TOGGLE_TIME = 500; // ms
-
-  static LEFT = -1;
-  static RIGHT = 1;
 
   static INIT = 0;
   static TYPE = 1;
@@ -32,10 +29,9 @@ class TypeWriter {
   #msgTargetCount;
   #msgCalledCount;
   #cursorToggleFlag = false;
-  #isGradientColorMode = false;
   #orgFontColor;
-  #gradientStartColor;
-  #gradientEndColor;
+  #gradientStartColor = undefined;
+  #gradientEndColor = undefined;
   #textNodeList = [];
   #textLengthPerLine = [0];
   #lineCount = 0;
@@ -103,8 +99,9 @@ class TypeWriter {
     }
 
     if (this.#isGradientColorMode) {
-      this.#isGradientColorMode = false;
       this.#rootObj.style.color = this.#orgFontColor;
+      this.#gradientStartColor = undefined;
+      this.#gradientEndColor = undefined;
     }
 
     this.#stopMsgLoopTimer && this.#stopMsgLoopTimer();
@@ -256,13 +253,13 @@ class TypeWriter {
 
     if (this.#curCursorIndex + index < 0) {
       this.#msgTargetCount = this.#curCursorIndex;
-      this.#movingDirection = TypeWriter.LEFT;
+      this.#movingDirection = LEFT;
     } else if (this.#curCursorIndex + index > this.#textNodeList.length) {
       this.#msgTargetCount = this.#textNodeList.length - this.#curCursorIndex;
-      this.#movingDirection = TypeWriter.RIGHT;
+      this.#movingDirection = RIGHT;
     } else {
       this.#msgTargetCount = Math.abs(index);
-      this.#movingDirection = index >= 0 ? TypeWriter.RIGHT : TypeWriter.LEFT;
+      this.#movingDirection = index >= 0 ? RIGHT : LEFT;
     }
   }
 
@@ -271,13 +268,13 @@ class TypeWriter {
 
     if (this.#curCursorIndex + index < 0) {
       this.#msgTargetCount = this.#curCursorIndex;
-      this.#movingDirection = TypeWriter.LEFT;
+      this.#movingDirection = LEFT;
     } else if (this.#curCursorIndex + index > this.#textNodeList.length) {
       this.#msgTargetCount = this.#textNodeList.length - this.#curCursorIndex;
-      this.#movingDirection = TypeWriter.RIGHT;
+      this.#movingDirection = RIGHT;
     } else {
       this.#msgTargetCount = Math.abs(index);
-      this.#movingDirection = index >= 0 ? TypeWriter.RIGHT : TypeWriter.LEFT;
+      this.#movingDirection = index >= 0 ? RIGHT : LEFT;
     }
   }
 
@@ -290,7 +287,6 @@ class TypeWriter {
     this.#curMsg = { case: TypeWriter.INIT, data: null };
     this.#gradientStartColor = rgb.startRGB;
     this.#gradientEndColor = rgb.endRGB;
-    this.#isGradientColorMode = true;
 
     this.#textNodeList.forEach((textNode, index) => {
       if (textNode.tagName === undefined) {
@@ -377,7 +373,7 @@ class TypeWriter {
       return;
     }
 
-    this.#movingDirection === TypeWriter.LEFT && this.#curCursorIndex--;
+    this.#movingDirection === LEFT && this.#curCursorIndex--;
 
     const textNode = this.#textNodeList[this.#curCursorIndex];
     this.#textNodeList.splice(this.#curCursorIndex, 1);
@@ -423,6 +419,10 @@ class TypeWriter {
 
   get #isRunning() {
     return this.#stopMsgLoopTimer !== undefined;
+  }
+
+  get #isGradientColorMode() {
+    return this.#gradientStartColor != undefined;
   }
 }
 
