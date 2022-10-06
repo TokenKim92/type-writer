@@ -313,6 +313,7 @@ class TypeWriter {
     this.#rootObj.insertBefore(textNode, this.#cursorWrapperObj);
 
     this.#isGradientColorMode && this.#onGradientMode(character);
+
     this.#msgCalledCount++;
   }
 
@@ -358,6 +359,7 @@ class TypeWriter {
     this.#curCursorIndex += this.#movingDirection;
     const textNode = this.#textNodeList[this.#curCursorIndex];
     this.#rootObj.insertBefore(this.#cursorWrapperObj, textNode);
+
     this.#msgCalledCount++;
   }
 
@@ -367,17 +369,12 @@ class TypeWriter {
       return;
     }
 
-    let textNode;
-    if (this.#movingDirection === TypeWriter.LEFT) {
-      this.#curCursorIndex--;
-      textNode =
-        this.#textNodeList[this.#curCursorIndex + this.#movingDirection];
-    } else {
-      textNode = this.#textNodeList[this.#curCursorIndex];
-    }
+    this.#movingDirection === TypeWriter.LEFT && this.#curCursorIndex--;
 
+    const textNode = this.#textNodeList[this.#curCursorIndex];
     this.#textNodeList.splice(this.#curCursorIndex, 1);
     this.#rootObj.removeChild(textNode);
+
     this.#msgCalledCount++;
   }
 
