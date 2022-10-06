@@ -105,17 +105,6 @@ class TypeWriter {
     this.#stopCursorToggleTimer || this.#setCursorToggleTimer();
   }
 
-  setGradientColorMode(startColor, endColor = undefined) {
-    this.#gradientStartColor = colorToRGB(startColor);
-    this.#gradientEndColor =
-      endColor === undefined
-        ? colorToRGB(this.#orgFontColor)
-        : colorToRGB(endColor);
-    this.#isGradientColorMode = true;
-
-    return this;
-  }
-
   #onMsgLoop() {
     if (this.#curMsg.case === TypeWriter.INIT) {
       const isMsgLoopEmpty = this.#msgList.length === 0;
@@ -145,6 +134,8 @@ class TypeWriter {
       case TypeWriter.DELAY:
         this.#setDelayData(msg.data);
         return this.#delaying;
+      case TypeWriter.GRADIENT:
+        this.#setGradientColorData(msg.data);
       default:
         return undefined;
     }
@@ -228,6 +219,17 @@ class TypeWriter {
     return this;
   }
 
+  gradientColor(startColor, endColor = undefined) {
+    const startRGB = colorToRGB(startColor);
+    const endRGB =
+      endColor === undefined
+        ? colorToRGB(this.#orgFontColor)
+        : colorToRGB(endColor);
+
+    this.#msgList.push({case: TypeWriter.GRADIENT, data: { startRGB, endRGB }}); // prettier-ignore
+    return this;
+  }
+
   #setTypeData(text) {
     this.#msgCalledCount = 0;
     this.#msgTargetCount = text.length;
@@ -274,6 +276,25 @@ class TypeWriter {
   #setDelayData(time) {
     this.#msgTargetCount = Math.round(time / this.#speed);
     this.#msgCalledCount = 0;
+  }
+
+  #setGradientColorData(rgb) {
+    this.#curMsg = { case: TypeWriter.INIT, data: null };
+    this.#gradientStartColor = rgb.startRGB;
+    this.#gradientEndColor = rgb.endRGB;
+    this.#isGradientColorMode = true;
+
+    this.#textNodeList.forEach((textNode, index) => {
+      if (textNode.tagName === undefined) {
+        const newTextNode = document.createTextNode(textNode.data);
+        const wrapperTextTag = document.createElement('span');
+        wrapperTextTag.appendChild(newTextNode);
+
+        this.#rootObj.insertBefore(wrapperTextTag, textNode);
+        this.#rootObj.removeChild(textNode);
+        this.#textNodeList.splice(index, 1, wrapperTextTag);
+      }
+    });
   }
 
   #typing() {
