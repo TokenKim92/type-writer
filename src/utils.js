@@ -26,8 +26,10 @@ export const colorToRGB = (rgbText) => {
   }
 
   const rgbValues = parseIntForRGB(rgbText.toLowerCase());
-
-  if (rgbValues.length !== 3 || rgbValues.includes(NaN)) {
+  if (
+    (rgbValues.length !== 3 && rgbValues.length !== 4) ||
+    rgbValues.includes(NaN)
+  ) {
     throw new Error(errorMsgForRGB);
   }
   rgbValues.forEach((colorValue) => {
@@ -40,6 +42,7 @@ export const colorToRGB = (rgbText) => {
     r: rgbValues[0],
     g: rgbValues[1],
     b: rgbValues[2],
+    a: rgbValues[3] === undefined ? 1 : rgbValues[3],
   };
 };
 

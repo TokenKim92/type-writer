@@ -4,7 +4,7 @@ const pkg = require('./package.json');
 const isProduction = process.argv[process.argv.indexOf('--mode') + 1] === 'production'; //prettier-ignore
 const FILENAME = pkg.name + (isProduction ? '.min' : '');
 const BANNER = [
-  'Typewriter',
+  'TypeWriter',
   '@version ' + pkg.version + ' | ' + new Date().toDateString(),
   '@author ' + pkg.author,
   '@license ' + pkg.license,
