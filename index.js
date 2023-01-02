@@ -1,4 +1,4 @@
-import TypeWriter from '../src/typewriter.js';
+import TypeWriter from './src/TypeWriter.js';
 
 const typeWriter = new TypeWriter('typewriter', 60);
 
