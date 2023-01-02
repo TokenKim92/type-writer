@@ -2,11 +2,9 @@
 
 A project to show how many animation effects can be shown in HTML5.
 
-A library of type effects that animate text in windows.
-
 It is a typing library to draw text in window. With any combination of function it make to write text as if you were actually typing.
 
-Since this project runs as a message loop, it draws, moves, or deletes characters sequentially, even with many functions you type before `start()`.
+Since this project runs as a message loop, it insert, moves, or deletes characters sequentially, even with many functions you type before `start()`.
 
 This project includes a webpack config file to package this project into a library for easier use.( use `npm run build` or `npm run build-prod` )
 
@@ -48,6 +46,19 @@ You need to write your text in plain HTML tags with id and insert it as a parame
 You can use any combination of functions: `type(text, delayTime = 0)`, `move(index, delayTime = 0)`, `moveToStart(delayTime = 0)`, `moveToEnd(delayTime = 0)`, `delete(count, delayTime = 0)`, `delay(time)`, `newLine(delayTime = 0)`, `gradientColor(startColor, endColor = undefined)`.
 
 And finally you need to set `start()` to run the command.
+
+## Parameter of class
+
+`TypeWriter(elementId, speed)`
+
+1. `elementId`: the id of html tag ( Any ID can be used )
+2. `speed`: typing speed
+
+for example
+
+```js
+const typeWriter = new TypeWriter('typewriter', 60);
+```
 
 ## functions
 
